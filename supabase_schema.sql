@@ -1,8 +1,6 @@
 -- Cabsy CRM 스키마
 -- Supabase 대시보드 > SQL Editor 에서 실행하세요.
 
-create extension if not exists pgcrypto;
-
 -- 내부 직원 계정 (권한 구분 없음, 공개 회원가입 없음 — scripts/create-staff.mjs로만 생성)
 create table public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
@@ -78,16 +76,12 @@ create table public.franchisee_individual_details (
 alter table public.franchisee_individual_details enable row level security;
 create policy "직원 전체 접근" on public.franchisee_individual_details for all to authenticated using (true) with check (true);
 
--- 주민등록번호 암/복호화 헬퍼 (키는 앱에서 환경변수로 전달)
-create or replace function public.encrypt_rrn(rrn text, key text)
-returns bytea language sql immutable as $$
-  select pgp_sym_encrypt(rrn, key)
-$$;
-
-create or replace function public.decrypt_rrn(enc bytea, key text)
-returns text language sql immutable as $$
-  select pgp_sym_decrypt(enc, key)
-$$;
+-- 주민등록번호(resident_reg_no_enc) 암/복호화는 DB 함수로 만들지 않는다.
+-- Supabase는 public 스키마의 함수를 기본적으로 PostgREST RPC로 노출하므로, 키를 파라미터로
+--받는 SQL 함수를 만들면 로그인한 클라이언트가 그 RPC를 직접 호출해 임의의 키로 복호화를
+-- 시도할 수 있게 된다. 대신 암/복호화는 서버 전용 애플리케이션 코드(Node crypto, AES-256-GCM)에서
+-- 처리하고, 키는 서버 환경변수(.env.local, NEXT_PUBLIC_ 아님)로만 관리한다 — 개인 상세 정보
+-- 입력/조회 화면을 만드는 태스크에서 함께 구현한다.
 
 -- 차량
 create table public.vehicles (

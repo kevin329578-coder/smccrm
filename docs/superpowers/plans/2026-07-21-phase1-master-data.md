@@ -29,7 +29,8 @@ react-hot-toast. 테스트 프레임워크 없음 — 검증은 `npm run build` 
 - `src/lib/supabase/client.ts`, `server.ts`, `service.ts`는 이미 생성됨 (모빌잡스와 동일한 패턴)
 - 원본 참고 파일: `C:\Users\SMC\Desktop\케빈의 프로젝트\SMC_CRM\캡시 사업운영 관리.xlsx` (git에 커밋 금지 — 민감정보 포함)
 - 지역은 `'서울' | '경기'`, 유형은 `'법인' | '개인'` 두 값만 허용
-- 주민등록번호는 반드시 pgcrypto로 암호화 저장, 평문으로 클라이언트에 내려주지 않음 (목록/상세 화면엔 마스킹만 표시)
+- 주민등록번호는 반드시 서버 전용 앱 코드(Node crypto)로 암호화 저장, 평문으로 클라이언트에 내려주지 않음
+  (목록/상세 화면엔 마스킹만 표시). DB 함수로 암/복호화하지 않음 — PostgREST가 자동으로 RPC 노출하는 문제 있음
 - DDL(테이블 생성)은 에이전트가 직접 실행할 수 없음 — 사용자가 Supabase 대시보드 SQL Editor에서 실행
 
 ---
@@ -50,8 +51,6 @@ react-hot-toast. 테스트 프레임워크 없음 — 검증은 `npm run build` 
 ```sql
 -- Cabsy CRM 스키마
 -- Supabase 대시보드 > SQL Editor 에서 실행하세요.
-
-create extension if not exists pgcrypto;
 
 -- 내부 직원 계정 (권한 구분 없음, 공개 회원가입 없음 — scripts/create-staff.mjs로만 생성)
 create table public.profiles (
@@ -128,16 +127,11 @@ create table public.franchisee_individual_details (
 alter table public.franchisee_individual_details enable row level security;
 create policy "직원 전체 접근" on public.franchisee_individual_details for all to authenticated using (true) with check (true);
 
--- 주민등록번호 암/복호화 헬퍼 (키는 앱에서 환경변수로 전달)
-create or replace function public.encrypt_rrn(rrn text, key text)
-returns bytea language sql immutable as $$
-  select pgp_sym_encrypt(rrn, key)
-$$;
-
-create or replace function public.decrypt_rrn(enc bytea, key text)
-returns text language sql immutable as $$
-  select pgp_sym_decrypt(enc, key)
-$$;
+-- 주민등록번호(resident_reg_no_enc) 암/복호화는 DB 함수로 만들지 않는다 (2026-07-21 보안 검토 반영).
+-- Supabase는 public 스키마 함수를 기본적으로 PostgREST RPC로 노출하므로, 키를 파라미터로 받는
+-- SQL 함수를 만들면 로그인한 클라이언트가 그 RPC를 직접 호출해 임의의 키로 복호화를 시도할 수
+-- 있다. 암/복호화는 서버 전용 앱 코드(Node crypto, AES-256-GCM)에서 처리하고, 키는 서버
+-- 환경변수로만 관리한다 — 개인 상세 정보 입력/조회 화면 태스크에서 함께 구현한다.
 
 -- 차량
 create table public.vehicles (
