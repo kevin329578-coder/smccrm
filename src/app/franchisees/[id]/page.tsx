@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth-context'
 import Nav from '@/components/Nav'
+import VehicleFormModal from '@/components/VehicleFormModal'
+import DriverFormModal from '@/components/DriverFormModal'
 import type { Franchisee, Vehicle, Driver } from '@/types'
 
 export default function FranchiseeDetailPage() {
@@ -14,6 +16,8 @@ export default function FranchiseeDetailPage() {
   const [franchisee, setFranchisee] = useState<Franchisee | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
+  const [vehicleModal, setVehicleModal] = useState<'new' | Vehicle | null>(null)
+  const [driverModal, setDriverModal] = useState<'new' | Driver | null>(null)
 
   useEffect(() => { if (profile) load() }, [profile, id])
 
@@ -54,9 +58,16 @@ export default function FranchiseeDetailPage() {
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #E5E8EB', borderRadius: 16, padding: 24, marginBottom: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>차량 ({vehicles.length}대)</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>차량 ({vehicles.length}대)</div>
+            <button onClick={() => setVehicleModal('new')}
+              style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#EEA91F', color: '#fff', borderRadius: 8 }}>
+              + 차량 추가
+            </button>
+          </div>
           {!vehicles.length ? <div style={{ color: '#ADB5BD', fontSize: 13 }}>등록된 차량이 없습니다</div> : vehicles.map(v => (
-            <div key={v.id} style={{ padding: '10px 0', borderBottom: '1px solid #F1F3F5', fontSize: 13, display: 'flex', gap: 12 }}>
+            <div key={v.id} onClick={() => setVehicleModal(v)}
+              style={{ padding: '10px 0', borderBottom: '1px solid #F1F3F5', fontSize: 13, display: 'flex', gap: 12, cursor: 'pointer' }}>
               <span style={{ fontWeight: 600 }}>{v.plate_no}</span>
               <span style={{ color: '#6B7684' }}>{v.car_model}</span>
               <span style={{ marginLeft: 'auto', color: v.status === '운행중' ? '#059669' : '#ADB5BD' }}>{v.status}</span>
@@ -65,9 +76,16 @@ export default function FranchiseeDetailPage() {
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #E5E8EB', borderRadius: 16, padding: 24 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>기사 ({drivers.length}명)</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>기사 ({drivers.length}명)</div>
+            <button onClick={() => setDriverModal('new')}
+              style={{ padding: '7px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#EEA91F', color: '#fff', borderRadius: 8 }}>
+              + 기사 추가
+            </button>
+          </div>
           {!drivers.length ? <div style={{ color: '#ADB5BD', fontSize: 13 }}>등록된 기사가 없습니다</div> : drivers.map(d => (
-            <div key={d.id} style={{ padding: '10px 0', borderBottom: '1px solid #F1F3F5', fontSize: 13, display: 'flex', gap: 12 }}>
+            <div key={d.id} onClick={() => setDriverModal(d)}
+              style={{ padding: '10px 0', borderBottom: '1px solid #F1F3F5', fontSize: 13, display: 'flex', gap: 12, cursor: 'pointer' }}>
               <span style={{ fontWeight: 600 }}>{d.name}</span>
               <span style={{ color: '#6B7684' }}>담당차량: {vehicleName(d.vehicle_id)}</span>
               <span style={{ marginLeft: 'auto', color: d.call_status === '전환완료' ? '#059669' : d.call_status === '해지' ? '#F04452' : '#92400E' }}>
@@ -77,6 +95,24 @@ export default function FranchiseeDetailPage() {
           ))}
         </div>
       </div>
+
+      {vehicleModal && (
+        <VehicleFormModal
+          franchiseeId={id}
+          vehicle={vehicleModal === 'new' ? undefined : vehicleModal}
+          onClose={() => setVehicleModal(null)}
+          onSaved={() => { setVehicleModal(null); load() }}
+        />
+      )}
+      {driverModal && (
+        <DriverFormModal
+          franchiseeId={id}
+          vehicles={vehicles}
+          driver={driverModal === 'new' ? undefined : driverModal}
+          onClose={() => setDriverModal(null)}
+          onSaved={() => { setDriverModal(null); load() }}
+        />
+      )}
     </div>
   )
 }
