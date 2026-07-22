@@ -54,7 +54,13 @@ def is_terminated(row):
     note_area = [str(v) for v in row[23:36] if v is not None]
     return '해지' in ' '.join(note_area)
 
-def migrate_individual_sheet(sheet_name, region):
+def migrate_individual_sheet(sheet_name, region, gender_idx=None, poa_idx=34, consignment_idx=35, privacy_idx=36):
+    """
+    경기개인/서울개인 컨택포인트 시트는 26번(주민등록번호) 컬럼까지는 동일하지만 그 이후
+    (성별/위임장여부/위탁여부/개인정보동의 위치)가 시트마다 달라, 해당 인덱스를 파라미터로 받는다.
+    - 경기개인: gender 컬럼 없음, poa=34, consignment=35, privacy=36 (기본값)
+    - 서울개인: gender=27, poa=33, consignment=34, privacy=35
+    """
     wb = openpyxl.load_workbook(XLSX_PATH, data_only=True, read_only=True)
     ws = wb[sheet_name]
     inserted, skipped = 0, 0
@@ -88,6 +94,7 @@ def migrate_individual_sheet(sheet_name, region):
                 rrn = to_text(row[26])
                 d_payload = {
                     'franchisee_id': franchisee_id,
+                    'gender': to_text(row[gender_idx]) if gender_idx is not None else None,
                     'tax_reverse_invoice_email': to_text(row[22]),
                     'taxpayer_status': to_text(row[23]),
                     'reverse_invoice_agreed': to_bool_o(row[24]),
@@ -96,9 +103,9 @@ def migrate_individual_sheet(sheet_name, region):
                     'cms_account': to_text(row[29]),
                     'esigned_at': to_date(row[30]),
                     'disclosure_provided_at': to_date(row[31]),
-                    'poa_provided': to_bool_o(row[34]),
-                    'consignment_agreed': to_bool_o(row[35]),
-                    'privacy_consent': to_bool_o(row[36]) if len(row) > 36 else False,
+                    'poa_provided': to_bool_o(row[poa_idx]),
+                    'consignment_agreed': to_bool_o(row[consignment_idx]),
+                    'privacy_consent': to_bool_o(row[privacy_idx]) if len(row) > privacy_idx else False,
                 }
                 if rrn:
                     d_payload['resident_reg_no_enc'] = encrypt_rrn(rrn)
@@ -135,4 +142,4 @@ def migrate_individual_sheet(sheet_name, region):
     print(f'{sheet_name} 완료. 삽입 {inserted}건, 스킵 {skipped}건.')
 
 if __name__ == '__main__':
-    migrate_individual_sheet('경기개인가맹 컨택포인트', '경기')
+    migrate_individual_sheet('서울개인가맹 컨택포인트', '서울', gender_idx=27, poa_idx=33, consignment_idx=34, privacy_idx=35)
