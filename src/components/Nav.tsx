@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth-context'
 
 const LINKS = [
   { href: '/', label: '통합 검색' },
+  { href: '/companies', label: '운수사 목록' },
+  { href: '/drivers', label: '기사 목록' },
   { href: '/franchisees/new', label: '가맹점 등록' },
 ]
 
