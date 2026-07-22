@@ -104,4 +104,4 @@ def migrate_vehicle_sheet(vehicle_sheet_name, franchisee_sheet_name, region):
     print(f'{vehicle_sheet_name} 완료. 삽입 {inserted}건, 스킵 {skipped}건.')
 
 if __name__ == '__main__':
-    migrate_vehicle_sheet('증차차량내역(서울법인)', '가맹점 정보(서울법인)', '서울')
+    migrate_vehicle_sheet('증차차량내역(경기법인)', '가맹점 정보(경기법인)', '경기')
