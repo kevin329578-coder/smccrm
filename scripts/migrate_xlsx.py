@@ -34,12 +34,18 @@ def to_text(v):
         return None
     return str(v).strip() or None
 
-def main():
+def is_terminated(row):
+    # 29~32 구간(수정사항 및 주변 셀)에 "해지"가 적혀 있으면 해지된 가맹점으로 본다
+    note_area = [str(v) for v in row[29:33] if v is not None]
+    return '해지' in ' '.join(note_area)
+
+def migrate_corporate_sheet(sheet_name, region):
     wb = openpyxl.load_workbook(XLSX_PATH, data_only=True, read_only=True)
-    ws = wb['가맹점 정보(서울법인)']
+    ws = wb[sheet_name]
     inserted, skipped = 0, 0
     log_path = os.path.join(os.path.dirname(__file__), 'migrate_log.txt')
-    with open(log_path, 'w', encoding='utf-8') as log:
+    with open(log_path, 'a', encoding='utf-8') as log:
+        log.write(f"\n=== {sheet_name} ===\n")
         # 헤더는 4행(0-index 기준 컬럼: 6=사업자등록번호, 7=사업자명, 8=대표자명, 10=전화번호,
         # 17=주소, 20=금융기관명, 21=계좌번호, 22=예금주명, 23=세금계산서메일), 데이터는 5행부터
         for row in ws.iter_rows(min_row=5, values_only=True):
@@ -49,7 +55,7 @@ def main():
                 skipped += 1
                 continue
             payload = {
-                'region': '서울',
+                'region': region,
                 'type': '법인',
                 'business_name': business_name,
                 'representative_name': to_text(row[8]),
@@ -60,7 +66,7 @@ def main():
                 'account_no': to_text(row[21]),
                 'account_holder': to_text(row[22]),
                 'tax_invoice_email': to_text(row[23]),
-                'status': '활성',
+                'status': '해지' if is_terminated(row) else '활성',
             }
             try:
                 insert_franchisee(payload)
@@ -68,7 +74,7 @@ def main():
             except Exception as e:
                 skipped += 1
                 log.write(f"실패: {business_name} - {e}\n")
-    print(f'완료. 삽입 {inserted}건, 스킵 {skipped}건. 로그: {log_path}')
+    print(f'{sheet_name} 완료. 삽입 {inserted}건, 스킵 {skipped}건. 로그: {log_path}')
 
 if __name__ == '__main__':
-    main()
+    migrate_corporate_sheet('가맹점 정보(경기법인)', '경기')
