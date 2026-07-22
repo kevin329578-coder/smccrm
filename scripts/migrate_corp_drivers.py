@@ -67,7 +67,11 @@ def build_alias_map(wb, franchisee_sheet_name):
         m[str(row[3]).strip()] = str(row[7]).strip()
     return m
 
-def migrate_corp_drivers(driver_sheet_name, franchisee_sheet_name, region):
+def migrate_corp_drivers(driver_sheet_name, franchisee_sheet_name, region, converted_idx=16, note_idx=17):
+    """
+    서울법인 시트는 성별 컬럼이 없어 전환일=16, 비고=17이지만, 경기법인 시트는 성별 컬럼이
+    14번에 끼어 있어 전환일=17, 비고=18로 한 칸씩 밀린다.
+    """
     wb = openpyxl.load_workbook(XLSX_PATH, data_only=True, read_only=True)
     alias_map = build_alias_map(wb, franchisee_sheet_name)
 
@@ -109,7 +113,7 @@ def migrate_corp_drivers(driver_sheet_name, franchisee_sheet_name, region):
                 log.write(f"가맹점 매칭 실패: {alias} (기사 {row[6]})\n")
                 continue
 
-            note = to_text(row[17]) if len(row) > 17 else None
+            note = to_text(row[note_idx]) if len(row) > note_idx else None
             terminated = bool(note and '해지' in note)
             plate_no = to_text(row[12])
             vehicle_id = vid_map.get(plate_no) if plate_no else None
@@ -122,7 +126,7 @@ def migrate_corp_drivers(driver_sheet_name, franchisee_sheet_name, region):
                 'taxi_license_no': to_text(row[11]),
                 'education_completed_at': to_date_flexible(row[7]),
                 'call_status': '해지' if terminated else '전환완료',
-                'call_converted_at': to_date_flexible(row[16]) if len(row) > 16 else None,
+                'call_converted_at': to_date_flexible(row[converted_idx]) if len(row) > converted_idx else None,
                 'call_termination_reason': note if terminated else None,
             })
             if len(batch) >= 500:
@@ -132,4 +136,4 @@ def migrate_corp_drivers(driver_sheet_name, franchisee_sheet_name, region):
     print(f'{driver_sheet_name} 완료. 삽입 {inserted}건, 스킵 {skipped}건.')
 
 if __name__ == '__main__':
-    migrate_corp_drivers('가맹콜전환신청(서울법인)', '가맹점 정보(서울법인)', '서울')
+    migrate_corp_drivers('가맹콜전환신청(경기법인)', '가맹점 정보(경기법인)', '경기', converted_idx=17, note_idx=18)
